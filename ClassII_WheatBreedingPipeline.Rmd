@@ -140,7 +140,7 @@ for (i in 1:nlevels(F4to5ID$F4ID)){           # Split this one whole population 
 
 # Here is the function that we could evaluate the phenotypic/GEBV/etc of each plot that is a "mini population"
 # Function to evaluate each bulked plots}
-Bulk_fnc<-function(InputPoplist,Select_position,nEnd_select=100){
+Bulk_fnc<-function(InputPoplist,Select_position,nEnd_select){
 
 NextYr_All<-NULL
 PhenoPerPlot<-NULL
