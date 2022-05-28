@@ -1,0 +1,267 @@
+---
+title: "WheatBreedingPipeline"
+author: "MaoHuang"
+date: "5/20/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Set up founder information
+Youd could get estimates of effective population size `Ne` using different methods. One example: The average LD is approximately =`1/(1+4Nec)`,([Sved, 1971](https://www.sciencedirect.com/science/article/pii/0040580971900116)) where `Ne` is the effective population size, and `c` is recombination rate among all sites, assumed to be 0.5. The average `LD` can be estimated using marker data. We pick `1000` as `Ne`.
+```{r founders}
+library(AlphaSimR)
+Ne<-1000
+nInd<-200
+nChr<-21
+segSites<-500
+founderHap<-runMacs2(nInd=nInd,nChr=nChr,segSites=segSites,Ne=Ne,inbred=TRUE,ploidy=2L,returnCommand=FALSE)
+```
+The number of individuals in the founder population = `r nInd`
+The number of chromosones for founder haplotype = ` r nChr`
+The number of segregating sites = `r segSites`
+
+```{r parameters}
+SP<-SimParam$new(founderHap)
+nSnp<-100
+SP$addSnpChip(nSnpPerChr=nSnp)
+
+nQtl<-100
+varE<-1   # h2= varG/(varG+varE) =0.5
+SP$addTraitA(nQtlPerChr=nQtl, mean=0,var=1,corA=NULL)
+
+SP$setTrackRec(TRUE)
+founderpop <- newPop(founderHap, simParam=SP)
+founderpop<-setPheno(founderpop,varE=varE,simParam=SP)
+```
+We add SNP Chip for genotyping downstream populations, The number of SNPs per chromosome = `r nSnp` <br>
+
+We add an additive trait, The number of QTLs per chromosome for this trait = `r nQtl`. We set the trait genetic mean 0, and genetic variance is 1. We set trait error variance `to be 1`varE`=`{r varE}`, hence heritability for this trait is 0.5 with the below formula: <br>
+                    h_^2=frac{varG}{varG+varE}
+
+AlphaSimR stores each individual using unique numbers
+A plot= many individuals= a population
+If you use Bulking method
+May require simulating multiple populations in parallel
+
+```{r Selecting individuals to make crosses}
+
+nParent<-20  
+nCross<-75
+ntimes<-3
+founderParent<-selectInd(pop=founderpop,nInd=nParent,trait=1,use="rand",simParam=SP)
+
+###### How to repeat those same set of crosses for 3 times???!!!
+Parentpop<-founderParent
+
+
+F1_All<-NULL
+F1_nCross<-NULL
+for (i in 1:nCross){
+  F1<-randCross(Parentpop,nCrosses=1,nProgeny=3,simParam=SP)
+  F1_nCross<-c(F1_nCross,F1)
+  F1_All<-c(F1_All,F1[1],F1[2],F1[3])
+}
+
+## Pretend each F1 plant self to produce 1 head, and each head has 8 seeds.
+## Hence each F1 can produce F2 plants=8
+nseeds<-8
+nF3<-200
+F2sel<-sample(1:225,nF3)       ### Randomly Select 200 HRs from F2 plants, self to make 200 F3s plots
+
+F2_All<-NULL
+F3_All<-NULL
+for (i in F2sel){
+  F2<-self(F1_All[[i]],nProgeny=nseeds, simParam=SP)  
+  F3<-self(F2,nProgeny=nseeds,simParam=SP)
+  
+  F2_All<-c(F2_All,F2)
+  F3_All<-c(F3_All,F3)
+}
+```
+Observe the phenotypic variation of F2 populations
+```{r}
+   F2_one<-mergePops(F2_All)
+   F2_pheno<-setPheno(F2_one,varE=varE)
+   hist(pheno(F2_pheno),main="Histogram of F2 generations")
+   
+```
+
+```{r}
+nF4<-120
+F3sel<-sample(1:200,nF4)                 ### Randomly Select for 120 F3 plots, self to make 120 F4s plots
+
+F4_All<-NULL
+for (i in F3sel){
+  F4<-self(F3_All[[i]],nProgeny=nseeds,simParam=SP)   
+  F4_All<-c(F4_All,F4)
+}
+
+nHeads<-115                    ### Randomly Select 115 plants out of each of the 120 F4 plots. Later self to get F5 seeds
+F4_Allplants<-NULL
+for (i in 1:length(F4_All)){
+  F4_Indi<-selectInd(F4_All[[i]],nInd=nHeads,trait=1,use="rand",simParam=SP)
+  F4_Allplants<-c(F4_Allplants,F4_Indi)
+  
+}
+
+F4_PopMerge<-mergePops(F4_Allplants)  ### Merge the 120 populations (115*120=13800 plants) into one population
+
+F4_5nsel<-1000                         
+### Randomly select 1000 out of 13,800 plots of F4:5 HR, because each head comes from the same F4 plants, so this random selection can be operated as Randomly selected on F4 plants. 
+  
+F4_5_select<-selectInd(pop=F4_PopMerge,nInd=F4_5nsel,trait=1,use="rand",simParam=SP)
+
+F4_5<-self(F4_5_select,nProgeny=nseeds,simParam=SP)
+F4_5_HR<-setPheno(pop=F4_5,varE=varE,simParam=SP)
+
+### Now we have to start label these 1000 HR plots (with 8 individuals per HR, and a total of 8000 individuals)  based on F4 IDs
+### We do these by split this one whole population into 1000 sub-populations, easier for tracking
+F4ID<-F4_5_select@id         ### Mark out each F4:5 individual plant in the F4_5_HR, is coming from which F4ID
+F4ID_toF5<-rep(F4ID,each=nseeds)
+F4to5ID<-cbind(F4ID_toF5,F4_5_HR@id)
+
+colnames(F4to5ID)<-c("F4ID","F5ID")  
+F4to5ID<-as.data.frame(F4to5ID)
+
+All_F45<-NULL
+PhenoPerPlot<-NULL
+for (i in 1:nlevels(F4to5ID$F4ID)){           # Split this one whole population into 1000 (plots)
+  F5IDs<-droplevels(F4to5ID[F4to5ID$F4ID==levels(F4to5ID$F4ID)[i],]$F5ID)
+  subposition<-which(F4_5_HR@id%in%F5IDs)     # Subset poplation based on position of 1-8000
+  EachF45<-F4_5_HR[subposition]
+  All_F45<-c(All_F45,EachF45)
+}
+
+
+# Here is the function that we could evaluate the phenotypic/GEBV/etc of each plot that is a "mini population"
+# Function to evaluate each bulked plots}
+Bulk_fnc<-function(InputPoplist,Select_position,nEnd_select=100){
+
+NextYr_All<-NULL
+PhenoPerPlot<-NULL
+for (i in Select_position){
+                                                          ## Example of YR1, selected out 450 plots
+  NextYr<-self(InputPoplist[[i]] ,nProgeny=nseeds,simParam=SP)   ## Self to get NextYr
+  PhenoNextYr<-setPheno(NextYr,varE=varE,simParam=SP)       ## Set Pheno
+  MeanPhenoNextYr<-mean(PhenoNextYr@pheno)         # Mean phenotype per Plot !!!! You could change to GEBVs
+  
+  NextYr_All<-c(NextYr_All,PhenoNextYr)                    # All selfed plots stored in a list
+  PhenoPerPlot<-c(PhenoPerPlot,MeanPhenoNextYr)      # Pheno mean per Plot/population
+}
+  nEnd_select<-nEnd_select
+  Pheno_order<-cbind(1:length(Select_position),PhenoPerPlot)   ## Add the selected Plot/population numeric order
+  Selected_position<-Pheno_order[order(-Pheno_order[,2]),1][1:nEnd_select]  ## select the Top ones
+  
+  return(list(Selected_position_output=Selected_position,Pop_All_output=NextYr_All))
+}
+
+```
+
+
+# Self each of these F4:5 plants to get F4:6, bulck as YR1  
+```{r}
+YR1_Bulk<-Bulk_fnc(InputPoplist=All_F45,Select_position=c(1:nlevels(F4to5ID$F4ID)),nEnd_select=450)
+YR1_All<-YR1_Bulk$Pop_All_output
+YR1_select_position<-YR1_Bulk$Selected_position
+
+### Subset the YR1s, self to get YR2s
+YR2_Bulk<-Bulk_fnc(InputPoplist = YR1_All, Select_position = YR1_select_position,nEnd_select = 100)
+YR2_All<-YR2_Bulk$Pop_All_output
+YR2_select_position<-YR2_Bulk$Selected_position
+  
+YR3_Bulk<-Bulk_fnc(InputPoplist = YR2_All, Select_position = YR2_select_position,nEnd_select = 25)
+YR3_All<-YR3_Bulk$Pop_All_output
+YR3_select_position<-YR3_Bulk$Selected_position
+
+YR4_Bulk<-Bulk_fnc(InputPoplist = YR3_All, Select_position = YR3_select_position,nEnd_select = 25)  ## Keep All 25
+YR4_All<-YR4_Bulk$Pop_All_output
+
+#Estimate the genetic Mean value compared to founders
+F1<-
+F2<-
+F3<-
+F4<-
+  
+YR1_one<-mergePops(YR1_All)
+YR2_one<-mergePops(YR2_All)
+YR3_one<-mergePops(YR3_All)
+YR4_one<-mergePops(YR4_All)
+
+YR_list<-NULL
+YR_list<-c(YR_list,founderpop,YR1_one,YR2_one,YR3_one,YR4_one)
+meanPop<-unlist(lapply(YR_list,meanG))
+
+library(ggplot2)
+plot(meanPop,type="b",xlab="Generation",ylab="Mean Genetic Values",xaxt = "n");axis(1,at=c(1,2,3,4,5),labels=c("Founderpop","YR1","YR2","YR3","YR4"))
+```
+
+
+```{r, echo=FALSE}
+# mean(3.354415,3.097652,3.019763,2.924882,2.858225,2.841901,2.865309,2.855133,2.624600,2.573367,2.560692,2.541063,2.543799,2.519808,2.481347,2.526702,2.474354,2.430975,2.399037,2.410576,2.329448,2.336823,2.302110,2.302757,2.324100)
+```
+
+# If we make the selection criterio being GEBVs, and the training population is being built based on the founders (or other populations)
+Change this function is to replace the Set pheno to become set EBV
+```{r}
+
+Bulk_fnc<-function(InputPoplist,Select_position,nEnd_select=100){
+NextYr_All<-NULL
+PhenoPerPlot<-NULL
+GSmodel<-RRBLUP(founderpop,traits=1,simParam=SP) 
+
+for (i in Select_position){
+                                                          ## Example of YR1, selected out 450 plots
+  NextYr<-self(InputPoplist[[i]] ,nProgeny=nseeds,simParam=SP)   ## Self to get NextYr
+ 
+  PhenoNextYr<-setEBV(InputPoplist[[i]],GSmodel,simParam=SP)  ## Set EBV
+  
+  MeanPhenoNextYr<-mean(PhenoNextYr@pheno)         # Mean phenotype per Plot !!!! You could change to GEBVs
+  
+  NextYr_All<-c(NextYr_All,NextYr)                    # All selfed plots stored in a list
+  PhenoPerPlot<-c(PhenoPerPlot,MeanPhenoNextYr)      # Pheno mean per Plot/population
+}
+  nEnd_select<-nEnd_select
+  Pheno_order<-cbind(1:length(Select_position),PhenoPerPlot)   ## Add the selected Plot/population numeric order
+  Selected_position<-Pheno_order[order(-Pheno_order[,2]),1][1:nEnd_select]  ## select the Top ones
+  
+  return(list(Selected_position_output=Selected_position,Pop_All_output=NextYr_All))
+}
+
+```
+
+Return the previous chunk where you execute the functions on YR1, YR2, YR3, and YR4
+```{r,echo=FALSE}
+YR1_Bulk<-Bulk_fnc(InputPoplist=All_F45,Select_position=c(1:nlevels(F4to5ID$F4ID)),nEnd_select=450)
+YR1_All<-YR1_Bulk$Pop_All_output
+YR1_select_position<-YR1_Bulk$Selected_position
+
+### Subset the YR1s, self to get YR2s
+YR2_Bulk<-Bulk_fnc(InputPoplist = YR1_All, Select_position = YR1_select_position,nEnd_select = 100)
+YR2_All<-YR2_Bulk$Pop_All_output
+YR2_select_position<-YR2_Bulk$Selected_position
+  
+YR3_Bulk<-Bulk_fnc(InputPoplist = YR2_All, Select_position = YR2_select_position,nEnd_select = 25)
+YR3_All<-YR3_Bulk$Pop_All_output
+YR3_select_position<-YR3_Bulk$Selected_position
+
+YR4_Bulk<-Bulk_fnc(InputPoplist = YR3_All, Select_position = YR3_select_position,nEnd_select = 25)  ## Keep All 25
+YR4_All<-YR4_Bulk$Pop_All_output
+
+#Estimate the genetic Mean value compared to founders
+YR1_one<-mergePops(YR1_All)
+YR2_one<-mergePops(YR2_All)
+YR3_one<-mergePops(YR3_All)
+YR4_one<-mergePops(YR4_All)
+
+YR_list<-NULL
+YR_list<-c(YR_list,founderpop,YR1_one,YR2_one,YR3_one,YR4_one)
+
+meanPop<-unlist(lapply(YR_list,meanG))
+library(ggplot2)
+plot(meanPop,type="b",xlab="Generation",ylab="Mean Genetic Values",xaxt = "n");axis(1,at=c(1,2,3,4,5),labels=c("Founderpop","YR1","YR2","YR3","YR4"))
+```
