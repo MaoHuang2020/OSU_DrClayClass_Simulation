@@ -41,8 +41,8 @@ Reading materials for <br>
 5. Evalute your simulation results  <br>
 
 ## Script setup  
-#### Install packages, set the random seed  
-*** Note: `AlphaSimR` generates many random numbers. Set up random seed and your will always get the same results. Please change it when you run.
+#### Install packages  
+*** Note: `AlphaSimR` generates many random numbers. Set up random seed: your will always get the same results. Please change it when you run.
 
 ```{r Script setup}  
 ## echo=FALSE in R markdown, if you do not want to show this chunk of code
@@ -70,8 +70,8 @@ Simulation uses assumptions <br>
 AlphaSimR requires initial simulation parameters to be set up for haplotypes
 ```{r script parameters}
 nFounders <- 10
-nChr <- 2
-segSites <- 500   # Number of segrerating sites per chormosome this =nLoci???
+nChr <- 20
+segSites <- 100   # Number of segrerating sites per chormosome this =nLoci???
 nQTL<- 100   #Number of QTL per chormosome this may be passed down randomly????
 ```
 The initial number of founders `nFounders` =`r nFounders` <br>
@@ -90,7 +90,7 @@ and [Huang](https://academic.oup.com/g3journal/article/12/3/jkac003/6511442?logi
 
 You can specify predefined population histories with parameters you choose
 Or supply their own population history. A list of available population histories include: GENERIC, CATTLE, WHEAT, MAIZE and EUROPEAN. <br>
-You can also import your own haplotypes being generated in another software or taken directly from real marker data rwith the newMapPop function. <br>
+You can also import your own haplotypes being generated in another software or taken directly from real marker data using the newMapPop function. <br>
 Note: you can also use `quickHaplo()` function to generate the initial haplotypes by randomly sampling 1s and 0s. It is modeling a population in Hardy-Weinberg equilibrium with allele frequencies of 0.5. It is only recommended for prototype coding.  
 
 * 2nd, you define simulation parameters that connects the founder haplotype genotypic and phenotypic variation <br>
