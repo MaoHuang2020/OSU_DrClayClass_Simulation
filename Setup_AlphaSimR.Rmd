@@ -3,8 +3,8 @@ title: "Simulation via AlphaSimR"
 author: "MaoHuang"
 date: "4/27/2022"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 <style>
@@ -71,8 +71,8 @@ AlphaSimR requires initial simulation parameters to be set up for haplotypes
 ```{r script parameters}
 nFounders <- 10
 nChr <- 20
-segSites <- 100   # Number of segrerating sites per chormosome this =nLoci???
-nQTL<- 100   #Number of QTL per chormosome this may be passed down randomly????
+segSites <- 500   # Number of segrerating sites per chormosome 
+nQTL<- 100   # Number of QTL per chormosome 
 ```
 The initial number of founders `nFounders` =`r nFounders` <br>
 The number of chromosomes for the species is `nChr` = `r nChr`  <br>
