@@ -52,7 +52,7 @@ May require simulating multiple populations in parallel
 
 nParent<-20  
 nCross<-75
-ntimes<-3
+
 founderParent<-selectInd(pop=founderpop,nInd=nParent,trait=1,use="rand",simParam=SP)
 
 ###### How to repeat those same set of crosses for 3 times???!!!
@@ -83,7 +83,7 @@ for (i in F2sel){
   F3_All<-c(F3_All,F3)
 }
 ```
-Observe the phenotypic variation of selected 200 F2 HR population
+Observe the phenotypic variation of all 225 F2 HR population
 ```{r plotting F2}
 F2_All<-NULL
 for (i in 1:length(F1_All)){
@@ -124,7 +124,7 @@ F4_Select<-selectInd(pop=F4_PopMerge,nInd=F4_5nsel,trait=1,use="rand",simParam=S
 F4_5<-self(F4_Select,nProgeny=nseeds,simParam=SP)
 F4_5_HR<-setPheno(pop=F4_5,varE=varE,simParam=SP)
 
-### Now we have to start label these 1000 HR plots (with 8 individuals per HR, and a total of 8000 individuals)  based on F4 IDs
+### Now we have to start label these 1000 HR plots (with 'nseeds' individuals per HR, and a total of 8000 individuals)  based on F4 IDs
 ### We do these by split this one whole population into 1000 sub-populations, easier for tracking
 F4ID<-F4_Select@id         ### Mark each F4:5 individual plant in the F4_5_HR, is coming from which F4ID
 F4ID_toF5<-rep(F4ID,each=nseeds)
@@ -168,13 +168,6 @@ for (i in Select_position){
 
 ```
 
-```{r Check on the size of each generation so far}
-F1_pop<-mergePops(F1_All)  #225
-F2_pop<-mergePops(F2_All)  #225
-F3_pop<-mergePops(F3_All)  #200  
-F4_pop<-mergePops(F4_All)  #120
-```
-
 # Self each of these F4:5 plants to get F4:6, bulck as YR1  
 ```{r execute function for YR1,2,3 and 4}
 YR1sel<-450
@@ -198,7 +191,14 @@ YR3_select_position<-YR3_Bulk$Selected_position
 YR4_Bulk<-Bulk_fnc(InputPoplist = YR3_All, Select_position = YR3_select_position,nEnd_select = YR4sel)  ## Keep All 25
 YR4_All<-YR4_Bulk$Pop_All_output
 
-#Estimate the genetic Mean value compared to founders
+```
+
+Estimate the genetic Mean value compared to founders
+```{r Check on the size of each generation so far}
+F1_pop<-mergePops(F1_All)  #225
+F2_pop<-mergePops(F2_All)  #225
+F3_pop<-mergePops(F3_All)  #200  
+F4_pop<-mergePops(F4_All)  #120
 
 YR1_one<-mergePops(YR1_All)  #1000
 YR2_one<-mergePops(YR2_All)  #450
